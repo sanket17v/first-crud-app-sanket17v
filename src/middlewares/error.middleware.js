@@ -1,3 +1,5 @@
+import mongoose from "mongoose";
+
 /**
  * TODO: Handle errors
  *
@@ -9,5 +11,28 @@
  * 3. Other errors → Use err.status (or 500) and err.message
  */
 export function errorHandler(err, req, res, next) {
-  // Your code here
+
+  if (err.name === "ValidationError") {
+     const messages = Object.values(err.errors)
+    .map(error => error.message)
+    .join(", ");
+    return res.status(400).json({
+      error: {
+        message: messages
+      }
+    })
+  }
+  if (err.name === "CastError") {
+    return res.status(400).json({
+      error: {
+        message: "Invalid id format"
+      }
+    });
+  }
+
+  return res.status(err.status || 500).json({
+    error: {
+      message: err.message,
+    },
+  });
 }
