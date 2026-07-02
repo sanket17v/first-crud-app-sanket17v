@@ -31,7 +31,7 @@ export function createApp() {
   // 404 handler
   app.use(notFound);
 
-  // Error handler (must be last)
+  
   app.use(errorHandler);
 
   return app;
