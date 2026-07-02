@@ -1,3 +1,4 @@
+import { errorHandler } from "../middlewares/error.middleware.js";
 import { Todo } from "../models/todo.model.js";
 
 /**
@@ -9,6 +10,17 @@ import { Todo } from "../models/todo.model.js";
 export async function createTodo(req, res, next) {
   try {
     // Your code here
+    const { title, completed, priority, tags, dueDate } = req.body;
+
+    const todo = await Todo.create({
+      title,
+      completed,
+      priority,
+      tags,
+      dueDate
+    })
+
+    return res.status(201).json(todo);
   } catch (error) {
     next(error);
   }
@@ -22,11 +34,55 @@ export async function createTodo(req, res, next) {
  */
 export async function listTodos(req, res, next) {
   try {
-    // Your code here
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+
+    const skip = (page - 1) * limit;
+
+    const filter = {};
+
+    if (req.query.completed !== undefined) {
+      filter.completed = req.query.completed === "true";
+    }
+
+    if (req.query.priority) {
+      filter.priority = req.query.priority;
+    }
+
+    if (req.query.search) {
+      filter.title = {
+        $regex: req.query.search,
+        $options: "i",
+      };
+    }
+
+    const total = await Todo.countDocuments(filter);
+
+    const pages = total === 0 ? 0 : Math.ceil(total / limit);
+
+    const todos = await Todo.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    // IMPORTANT: empty page handling
+    const data = skip >= total ? [] : todos;
+
+    return res.status(200).json({
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        pages,
+      },
+    });
   } catch (error) {
     next(error);
   }
 }
+
+
 
 /**
  * TODO: Get single todo by ID
@@ -34,7 +90,19 @@ export async function listTodos(req, res, next) {
  */
 export async function getTodo(req, res, next) {
   try {
-    // Your code here
+    const { id } = req.params;
+
+    const todo = await Todo.findById(id);
+
+    if (!todo) {
+      return res.status(404).json({
+        error: {
+          message: "Todo not found",
+        },
+      });
+    }
+
+    return res.status(200).json(todo);
   } catch (error) {
     next(error);
   }
@@ -48,6 +116,21 @@ export async function getTodo(req, res, next) {
 export async function updateTodo(req, res, next) {
   try {
     // Your code here
+    const { id } = req.params;
+
+    const updated = await Todo.findByIdAndUpdate(
+      id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json({
+        error: { message: "Not Found" },
+      });
+    }
+
+    return res.json(updated);
   } catch (error) {
     next(error);
   }
@@ -61,6 +144,20 @@ export async function updateTodo(req, res, next) {
 export async function toggleTodo(req, res, next) {
   try {
     // Your code here
+      const { id } = req.params;
+
+    const todo = await Todo.findById(id);
+
+    if (!todo) {
+      return res.status(404).json({
+        error: { message: "Not Found" },
+      });
+    }
+
+    todo.completed = !todo.completed;
+    await todo.save();
+
+    return res.json(todo);
   } catch (error) {
     next(error);
   }
@@ -74,6 +171,19 @@ export async function toggleTodo(req, res, next) {
 export async function deleteTodo(req, res, next) {
   try {
     // Your code here
+
+    const { id } = req.params;
+   
+
+    const deleted = await Todo.findByIdAndDelete(id)
+
+    if (!deleted) {
+      return res.status(404).json({
+        error: { message: "Not Found" },
+      });
+    }
+    return res.status(204).send();
+
   } catch (error) {
     next(error);
   }
